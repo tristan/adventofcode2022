@@ -1,11 +1,47 @@
-use std::{collections::{HashMap, HashSet}, cmp::Ordering};
+use std::{collections::{HashMap, HashSet}, cmp::Ordering, ops::Range};
 
 fn distance((x1, y1): (i64, i64), (x2, y2): (i64, i64)) -> i64 {
     (x1 - x2).abs() + (y1 - y2).abs()
 }
 
+fn calculate_ranges(sensors: &HashMap<(i64, i64), (i64, i64)>, ry: i64) -> Vec<Range<i64>> {
+    let mut ranges = sensors.iter().filter_map(|(&(sx, sy), &(bx, by))| {
+        let dist = distance((sx, sy), (bx, by));
+        let rx1 = sx - (dist - (ry - sy).abs());
+        let rx2 = sx + (dist - (ry - sy).abs());
+        if rx1 <= rx2 {
+            Some(rx1..rx2)
+        } else {
+            None
+        }
+    }).collect::<Vec<_>>();
+    ranges.sort_unstable_by(|r1, r2| {
+        match r1.start.cmp(&r2.start) {
+            Ordering::Equal => r1.end.cmp(&r2.end),
+            e => e
+        }
+    });
+    let first = ranges.remove(0);
+    let mut merged = Vec::new();
+    let last = ranges.into_iter().fold(first, |prev, next| {
+        // if the two can be merged
+        if prev.end >= next.start {
+            if next.end > prev.end {
+                prev.start..next.end
+            } else {
+                prev
+            }
+        } else {
+            merged.push(prev);
+            next
+        }
+    });
+    merged.push(last);
+    merged
+}
+
 fn main() {
-    let input = include_str!("day_15_input.txt").trim();
+    let input = include_str!("day_15_input_yulia.txt").trim();
 
     let mut sensors = HashMap::new();
     let mut beacons = HashSet::new();
@@ -51,38 +87,7 @@ fn main() {
     }
 
     let ry = 2000000;
-    let mut ranges = sensors.iter().filter_map(|(&(sx, sy), &(bx, by))| {
-        let dist = distance((sx, sy), (bx, by));
-        let rx1 = sx - (dist - (ry - sy).abs());
-        let rx2 = sx + (dist - (ry - sy).abs());
-        if rx1 <= rx2 {
-            Some(rx1..rx2)
-        } else {
-            None
-        }
-    }).collect::<Vec<_>>();
-    ranges.sort_unstable_by(|r1, r2| {
-        match r1.start.cmp(&r2.start) {
-            Ordering::Equal => r1.end.cmp(&r2.end),
-            e => e
-        }
-    });
-    let first = ranges.remove(0);
-    let mut merged = Vec::new();
-    let last = ranges.into_iter().fold(first, |prev, next| {
-        // if the two can be merged
-        if prev.end >= next.start {
-            if next.end > prev.end {
-                prev.start..next.end
-            } else {
-                prev
-            }
-        } else {
-            merged.push(prev);
-            next
-        }
-    });
-    merged.push(last);
+    let merged = calculate_ranges(&sensors, ry);
     let mut part1 = 0;
     for r in merged {
         part1 += (r.end + 1) - r.start;
@@ -96,4 +101,14 @@ fn main() {
         }
     }
     println!("part1: {part1}");
+
+    for ry in 0..4000000 {
+        let mut merged = calculate_ranges(&sensors, ry);
+        if merged.len() > 1 {
+            let r1 = merged.remove(0);
+            let part2 = (r1.end + 1) * 4000000 + ry;
+            println!("part2: {part2}");
+            break
+        }
+    }
 }
