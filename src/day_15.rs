@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, cmp::Ordering};
 
 fn distance((x1, y1): (i64, i64), (x2, y2): (i64, i64)) -> i64 {
     (x1 - x2).abs() + (y1 - y2).abs()
@@ -50,28 +50,50 @@ fn main() {
         beacons.insert((bx, by));
     }
 
-    let mut cantbe = HashSet::new();
-
-    for (&(sx, sy), &(bx, by)) in sensors.iter() {
+    let ry = 2000000;
+    let mut ranges = sensors.iter().filter_map(|(&(sx, sy), &(bx, by))| {
         let dist = distance((sx, sy), (bx, by));
-        let mut diff = 0;
-        loop {
-            let left = (sx - diff, 2000000);
-            let right = (sx + diff, 2000000);
-            let ldist = distance((sx, sy), left);
-            if ldist <= dist {
-                if !beacons.contains(&left) {
-                    cantbe.insert(left);
-                }
-                if !beacons.contains(&right) {
-                    cantbe.insert(right);
-                }
-                diff += 1;
+        let rx1 = sx - (dist - (ry - sy).abs());
+        let rx2 = sx + (dist - (ry - sy).abs());
+        if rx1 <= rx2 {
+            Some(rx1..rx2)
+        } else {
+            None
+        }
+    }).collect::<Vec<_>>();
+    ranges.sort_unstable_by(|r1, r2| {
+        match r1.start.cmp(&r2.start) {
+            Ordering::Equal => r1.end.cmp(&r2.end),
+            e => e
+        }
+    });
+    let first = ranges.remove(0);
+    let mut merged = Vec::new();
+    let last = ranges.into_iter().fold(first, |prev, next| {
+        // if the two can be merged
+        if prev.end >= next.start {
+            if next.end > prev.end {
+                prev.start..next.end
             } else {
-                break;
+                prev
+            }
+        } else {
+            merged.push(prev);
+            next
+        }
+    });
+    merged.push(last);
+    let mut part1 = 0;
+    for r in merged {
+        part1 += (r.end + 1) - r.start;
+        for &(bx, by) in &beacons {
+            if by != ry {
+                continue;
+            }
+            if bx >= r.start && bx <= r.end {
+                part1 -= 1;
             }
         }
     }
-    let part1 = cantbe.len();
     println!("part1: {part1}");
 }
