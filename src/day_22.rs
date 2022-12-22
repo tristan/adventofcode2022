@@ -1,7 +1,8 @@
+#[cfg(debug_assertions)]
+use std::io::{Read, Write};
+
 const GRID_WIDTH: usize = 150;
 const GRID_HEIGHT: usize = 200;
-//const GRID_WIDTH: usize = 16;
-//const GRID_HEIGHT: usize = 12;
 
 #[derive(Clone, Copy, Debug)]
 enum Move {
@@ -18,8 +19,12 @@ enum Direction {
     Right,
 }
 
+#[cfg(debug_assertions)]
 fn print_grid(grid: &Vec<Vec<Option<i32>>>, x: usize, y: usize, dir: Direction) {
     for (gy, row) in grid.iter().enumerate() {
+        if (gy < y && y - gy > 10) || (gy > y && gy - y > 10) {
+            continue;
+        }
         for (gx, c) in row.iter().enumerate() {
             if gx == x && gy == y {
                 match dir {
@@ -39,6 +44,16 @@ fn print_grid(grid: &Vec<Vec<Option<i32>>>, x: usize, y: usize, dir: Direction) 
         println!();
     }
     println!();
+    wait_for_key_press();
+}
+
+#[cfg(debug_assertions)]
+pub fn wait_for_key_press() {
+    let mut stdout = std::io::stdout();
+    stdout.write_all(b"Press Enter to continue...").unwrap();
+    stdout.flush().unwrap();
+    std::io::stdin().read_exact(&mut [0]).unwrap();
+    stdout.write_all(b"\n").unwrap();
 }
 
 fn main() {
@@ -158,4 +173,175 @@ fn main() {
             Direction::Up => 3,
         };
     println!("part1: {part1}");
+
+    let (mut x, mut y) = (grid[0].iter().position(|&v| v == Some(0)).unwrap(), 0);
+    let mut dir = Direction::Right;
+    //print_grid(&grid, x, y, dir);
+    for &instruction in &directions {
+        match instruction {
+            Move::Left => {
+                dir = match dir {
+                    Direction::Up => Direction::Left,
+                    Direction::Right => Direction::Up,
+                    Direction::Down => Direction::Right,
+                    Direction::Left => Direction::Down,
+                };
+                #[cfg(debug_assertions)]
+                {
+                    print!("\x1B[2J\x1B[1;1H");
+                    println!("{:?}\n", instruction);
+                    print_grid(&grid, x, y, dir);
+                }
+            }
+            Move::Right => {
+                dir = match dir {
+                    Direction::Up => Direction::Right,
+                    Direction::Right => Direction::Down,
+                    Direction::Down => Direction::Left,
+                    Direction::Left => Direction::Up,
+                };
+                #[cfg(debug_assertions)]
+                {
+                    print!("\x1B[2J\x1B[1;1H");
+                    println!("{:?}\n", instruction);
+                    print_grid(&grid, x, y, dir);
+                }
+            }
+            Move::Forward(mut steps) => {
+                while steps > 0 {
+                    let (nx, ny, nd) = match dir {
+                        Direction::Left => {
+                            if (x % 50) == 0 {
+                                // which grid to move to based on y
+                                if y < 50 {
+                                    if x < 100 {
+                                        (0, 149 - y, Direction::Right)
+                                    } else {
+                                        (x - 1, y, dir)
+                                    }
+                                } else if y >= 50 && y < 100 {
+                                    (y - 50, 100, Direction::Down)
+                                } else if y >= 100 && y < 150 {
+                                    if x < 50 {
+                                        (50, 49 - (y - 100), Direction::Right)
+                                    } else {
+                                        (x - 1, y, dir)
+                                    }
+                                } else if y >= 150 {
+                                    (y - 100, 0, Direction::Down)
+                                } else {
+                                    unreachable!()
+                                }
+                            } else {
+                                (x - 1, y, dir)
+                            }
+                        }
+                        Direction::Right => {
+                            if (x % 50) == 49 {
+                                if y < 50 {
+                                    if x == 149 {
+                                        (99, 149 - y, Direction::Left)
+                                    } else {
+                                        (x + 1, y, dir)
+                                    }
+                                } else if y >= 50 && y < 100 {
+                                    (100 + (y - 50), 49, Direction::Up)
+                                } else if y >= 100 && y < 150 {
+                                    if x == 99 {
+                                        (149, 49 - (y - 100), Direction::Left)
+                                    } else {
+                                        (x + 1, y, dir)
+                                    }
+                                } else if y >= 150 {
+                                    (y - 100, 149, Direction::Up)
+                                } else {
+                                    unreachable!()
+                                }
+                            } else {
+                                (x + 1, y, dir)
+                            }
+                        }
+                        Direction::Up => {
+                            if (y % 50) == 0 {
+                                if x < 50 {
+                                    if y < 150 {
+                                        (50, 50 + x, Direction::Right)
+                                    } else {
+                                        (x, y - 1, dir)
+                                    }
+                                } else if x >= 50 && x < 100 {
+                                    if y < 50 {
+                                        (0, 150 + (x - 50), Direction::Right)
+                                    } else {
+                                        (x, y - 1, dir)
+                                    }
+                                } else if x >= 100 && x < 150 {
+                                    (x - 100, 199, Direction::Up)
+                                } else {
+                                    unreachable!()
+                                }
+                            } else {
+                                (x, y - 1, dir)
+                            }
+                        }
+                        Direction::Down => {
+                            if (y % 50) == 49 {
+                                if x < 50 {
+                                    if y == 199 {
+                                        (100 + x, 0, Direction::Down)
+                                    } else {
+                                        (x, y + 1, dir)
+                                    }
+                                } else if x >= 50 && x < 100 {
+                                    if y == 149 {
+                                        (49, 150 + (x - 50), Direction::Left)
+                                    } else {
+                                        (x, y + 1, dir)
+                                    }
+                                } else if x >= 100 && x < 150 {
+                                    (99, 50 + (x - 100), Direction::Left)
+                                } else {
+                                    unreachable!()
+                                }
+                            } else {
+                                (x, y + 1, dir)
+                            }
+                        }
+                    };
+                    if matches!(grid[ny][nx], Some(0)) {
+                        #[cfg(debug_assertions)]
+                        {
+                            print!("\x1B[2J\x1B[1;1H");
+                            println!("{:?} ({})", instruction, steps);
+                            println!("{x}->{nx} {y}->{ny} {:?}->{:?}", dir, nd);
+                            print_grid(&grid, nx, ny, nd);
+                        }
+                        x = nx;
+                        y = ny;
+                        dir = nd;
+                        steps -= 1;
+                    } else {
+                        #[cfg(debug_assertions)]
+                        {
+                            print!("\x1B[2J\x1B[1;1H");
+                            println!("{:?} ({})", instruction, steps);
+                            println!("{x}->{nx} {y}->{ny} {:?}->{:?} BLOCKED", dir, nd);
+                            print_grid(&grid, x, y, dir);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let part2 = 1000 * (y + 1)
+        + 4 * (x + 1)
+        + match dir {
+            Direction::Right => 0,
+            Direction::Down => 1,
+            Direction::Left => 2,
+            Direction::Up => 3,
+        };
+    println!("part2: {part2}");
 }
